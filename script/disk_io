@@ -1,0 +1,40 @@
+#!/bin/bash
+#
+#
+file="/tmp/disk_io"
+if [ $1 ] && [ $2 ];then
+	`iostat -x  -t 1 -d 2 > /tmp/disk_io`
+fi
+case $2 in
+        read)
+                data=`cat $file|grep $1|tail -1|awk '{print $6}'`
+                echo $data
+        ;;
+        write)
+                data=`cat $file|grep $1|tail -1|awk '{print $7}'`
+                echo $data
+        ;;
+        avgqu)
+                data=`cat $file|grep $1|tail -1|awk '{print $9}'`
+                echo $data
+        ;;
+        wait)
+                data=`cat $file|grep $1|tail -1|awk '{print $10}'`
+                echo $data
+        ;;
+        svctm)
+                data=`cat $file|grep $1|tail -1|awk '{print $11}'`
+                echo $data
+        ;;
+        util)
+                if [ -f /etc/redhat-release ];then
+                        data=`cat $file|grep $1|tail -1|awk '{print $12}'`
+                else
+                        version=`cat /etc/issue|awk '{print $1}'|head -1`
+                        if [ "$version" = "Ubuntu" ];then
+                        data=`cat $file|grep $1|tail -1|awk '{print $14}'`
+                        fi
+                fi
+                echo $data
+        ;;
+esac

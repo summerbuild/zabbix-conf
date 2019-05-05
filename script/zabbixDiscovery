@@ -1,0 +1,124 @@
+#!/bin/bash
+serviceDiscovery() {
+    project_dir="/home/deploy/projects/"
+    serviceList=($(ls $project_dir|grep "service"))
+    printf '{\n'
+    printf '\t"data":[\n'
+    for key in ${!serviceList[@]}
+    do
+        if [[ "$key" -lt "((${#serviceList[@]}-1))" ]];then
+	    printf "\t\t{\n"
+            printf "\t\t\t\"{#SERVICENAME}\":\"${serviceList[$key]}\"},\n"
+	else
+	    printf "\t\t{\n"
+            printf "\t\t\t\"{#SERVICENAME}\":\"${serviceList[$key]}\"}\n"
+        fi
+    done
+    printf '\t ]\n'
+    printf '}\n'
+}
+
+webDiscovery(){
+    webarray=(`ls /data/web-server/|grep -E "^tomcat.*"`)
+    length=${#webarray[@]}
+    printf "{\n"
+    printf  '\t'"\"data\":["
+    for ((i=0;i<$length;i++))
+    do
+        printf '\n\t\t{'
+        printf "\"{#WEBNAME}\":\"${webarray[$i]}\"}"
+        if [ $i -lt $[$length-1] ];then
+                printf ','
+        fi
+    done
+    printf  "\n\t]\n"
+    printf "}\n"
+}
+diskDiscovery(){
+    diskarray=(`cat /proc/diskstats |grep -E "\bsd[abcdefg]\b|\bxvd[abcdefg]\b|vd[abcdef]\b"|grep -i "\b$1\b"|awk '{print $3}'|sort|uniq 2>/dev/null`)
+    length=${#diskarray[@]}
+    printf "{\n"
+    printf  '\t'"\"data\":["
+    for ((i=0;i<$length;i++))
+    do
+        printf '\n\t\t{'
+        printf "\"{#DISKNAME}\":\"${diskarray[$i]}\"}"
+        if [ $i -lt $[$length-1] ];then
+                printf ','
+        fi
+    done
+    printf  "\n\t]\n"
+    printf "}\n"
+}
+zkDiscovery(){
+    process=$(ps -ef|grep "zookeeper"|grep -c "zoo.cfg")
+    if [ $process != 0 ];then
+        list=($(ps -ef|grep "zookeeper"|grep "zoo.cfg"|awk '{print $NF}'|sed 's#/bin/..##g'))
+        ipaddress=$(ifconfig|grep "inet addr"|grep -v "127.0.0.1"|awk -F: '{print $2}'|awk '{print $1}'|grep -E "^192|^10")
+        printf "{\n"
+        printf  '\t'"\"data\":["
+        for key in ${!list[@]}
+        do
+            port=$(awk -F= '/clientPort/{print $2}' ${list[$key]})
+            printf '\n\t\t{'
+            printf "\"{#ZKNODES}\":\"$ipaddress:$port\"}"
+            if [[ "$key" -lt "((${#list[@]}-1))" ]];then
+                printf ","
+            fi
+        done
+        printf  "\n\t]\n"
+        printf "}\n"
+    fi
+}
+redisDiscovery(){
+    redisarray=($(ps -ef|grep redis-server|grep -v grep|awk '{print $9}'))
+    length=${#redisarray[@]}
+    printf "{\n"
+    printf  '\t'"\"data\":["
+    for ((i=0;i<$length;i++))
+    do
+        printf '\n\t\t{'
+        printf "\"{#REDISNODE}\":\"${redisarray[$i]}\"}"
+        if [ $i -lt $[$length-1] ];then
+                printf ','
+        fi
+    done
+    printf  "\n\t]\n"
+    printf "}\n"
+}
+processDiscovery(){
+    if [ -f "/etc/zabbix/tmp/process" ];then
+        processarray=($(cat /etc/zabbix/tmp/process))
+        length=${#processarray[@]}
+        printf "{\n"
+        printf  '\t'"\"data\":["
+        for ((i=0;i<$length;i++))
+        do
+            printf '\n\t\t{'
+            printf "\"{#PROCESS}\":\"${processarray[$i]}\"}"
+            if [ $i -lt $[$length-1] ];then
+                    printf ','
+            fi
+        done
+        printf  "\n\t]\n"
+        printf "}\n"
+    fi
+}
+
+case $1 in
+    service)
+        serviceDiscovery
+        ;;
+    web)
+        webDiscovery
+        ;;
+    disk)
+        diskDiscovery
+        ;;
+    redis)
+        redisDiscovery
+        ;;
+    process)
+        processDiscovery
+        ;;
+esac

@@ -1,0 +1,91 @@
+#!/bin/bash
+# check memory script
+# sunny 2008.2.15
+
+if [ -f /etc/redhat-release ];then
+    OS=`cat /etc/redhat-release |awk '{print $4}'|awk -F. '{print $1}'`
+    if [ $OS == 7 ];then
+        total_value=`free|grep Mem|awk '{print $2}'`
+	Free=`free|grep Mem|awk '{print $NF}'`
+	#cached_value=`free|grep Mem|awk '{print $6}'`
+	share_value=`free|grep Mem|awk '{print $5}'`
+	used_value=$[$total_value - $Free]
+    else
+	# Total memory 
+	total_value=`cat /proc/meminfo |grep "^MemTotal"|awk '{print $2}'`
+	# Free memory 
+	free_value=`cat /proc/meminfo |grep "^MemFree"|awk '{print $2}'`
+	buffers_value=`cat /proc/meminfo |grep "^Buffers"|awk '{print $2}'`
+	cached_value=`cat /proc/meminfo |grep "^Cached"|awk '{print $2}'`
+	Free=$[$free_value + $buffers_value + $cached_value]
+	# Used memory 
+	used_value=$[$total_value - $Free]
+    fi
+else
+    total_value=`free|grep Mem|awk '{print $2}'`
+    Free=`free|grep Mem|awk '{print $NF}'`
+    #cached_value=`free|grep Mem|awk '{print $6}'`
+    share_value=`free|grep Mem|awk '{print $5}'`
+    used_value=`expr $total_value - $Free`
+fi
+# to calculate used percent
+# use the expression  used * 100 / total
+usedtmp=`expr $used_value \* 100`
+usedent=`expr $usedtmp / $total_value`
+#############################################################################################
+total () {
+#如果指定单位为M,则换算为M.默认是G为单位
+if [ "$1" ];then
+	total=$[$total_value/1024]
+	if [ "$total" -le 1 ];then
+            total=`awk 'BEGIN{printf "%.2f\n",'$total_value/1024'}'|awk '{printf("%0.1f\n",$0)}'`
+	fi
+else
+        #前一个awk保留两位小数,后一个awk4舍5入
+        total=`awk 'BEGIN{printf "%.2f\n",'$total_value/1024/1024'}'|awk '{printf("%0.1f\n",$0)}'`
+fi
+	echo $total
+}
+#############################################################################################
+free(){
+if [ "$1" ];then
+        free=$[$Free/1024]
+	if [ "$free" -le 1 ];then
+            free=`awk 'BEGIN{printf "%.2f\n",'$Free/1024'}'`
+	fi
+else 
+        free=`awk 'BEGIN{printf "%.2f\n",'$Free/1024/1024'}'`
+fi
+	echo $free
+}
+#############################################################################################
+used (){
+if [ "$1" ];then
+        used=$[$used_value/1024]
+	if [ "$used" -le 1 ];then
+            used=`awk 'BEGIN{printf "%.2f\n",'$used_value/1024'}'`
+	fi
+else 
+        used=`awk 'BEGIN{printf "%.2f\n",'$used_value/1024/1024'}'`
+fi
+	echo $used
+}
+#############################################################################################
+case $1 in
+	total)
+		total $2
+	;;
+	used)
+		used $2
+	;;
+	free)
+		free $2
+	;;
+	usedent)
+		echo $usedent
+	;;
+	--help|help)
+		echo "        $1 [total|used|usedent];$2 [m|default is G]"
+		exit 0
+esac
+
